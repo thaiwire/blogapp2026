@@ -2,7 +2,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { set, z } from "zod";
 import {
   Form,
   FormControl,
@@ -14,6 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { loginUser } from "@/server-action/users";
+import Cookies from 'js-cookie'
+
+
+
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -21,6 +28,12 @@ const formSchema = z.object({
 });
 
 function LoginPage() {
+   
+  const [loading, setLoading] = React.useState(false);
+  const router = useRouter();
+
+
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -29,9 +42,23 @@ function LoginPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-    console.log(values);
+   async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      //
+      setLoading(true);
+      const response:any = await loginUser(values.email, values.password);
+      if (response.success) {
+       
+          Cookies.set("user_token", response.data.jwtToken);
+          toast.success("Login successful");
+          router.push("/user/dashboard");
+      } else {
+        toast.error(response.message || "Login failed");
+      }
+
+    } catch (error) {
+      toast.error("Login failed. Please try again.");
+    }
   }
 
   return (

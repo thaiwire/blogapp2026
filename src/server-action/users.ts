@@ -3,6 +3,7 @@
 import supabase from "@/config/supabase-config";
 import { IUser } from "@/interfaces";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 export const registerUser = async (payload: Partial<IUser>) => {
   if (!payload.email || !payload.password || !payload.username) {
@@ -49,3 +50,53 @@ export const registerUser = async (payload: Partial<IUser>) => {
     data: newUser,
   };
 };
+
+export const loginUser = async (email: string, password: string) => {
+  try {
+    // step1 : fetch user by email
+    const { data: users, error: usersError } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("email", email);
+    if (usersError) {
+       return {
+        success: false,
+        message: usersError.message || "Error fetching user",
+      };
+    }
+    if (!users || users.length === 0) {
+      return {
+        success: false,
+        message: "User not found",
+      };
+    }
+    // step2 : compare password
+    const user = users[0];
+    const isPasswordValid = await bcrypt.compare(password, user.password || "");
+    if (!isPasswordValid) {
+      return {
+        success: false,
+        message: "Invalid password",
+      };
+    }
+
+    // step3 : generate JWT token
+    const jwtToken = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET_KEY!, 
+      { expiresIn: "1d" }
+    );
+    return {
+      success: true,
+      message: "Login successful",
+      data: { user, jwtToken },
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      message: (error as Error).message || "Error logging in",
+    }
+  }
+
+}
