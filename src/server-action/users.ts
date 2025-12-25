@@ -4,6 +4,7 @@ import supabase from "@/config/supabase-config";
 import { IUser } from "@/interfaces";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
 export const registerUser = async (payload: Partial<IUser>) => {
   if (!payload.email || !payload.password || !payload.username) {
@@ -99,4 +100,46 @@ export const loginUser = async (email: string, password: string) => {
     }
   }
 
+}
+
+export const getLoggedInUser = async () => {
+  try {
+    
+    const cookieStore = await cookies();
+    const token = cookieStore.get("user_token")?.value;
+    const decodedToken = jwt.verify(token || "", process.env.JWT_SECRET_KEY!) as { userId: string  };
+    
+    if (!decodedToken || !decodedToken.userId) {
+      return {
+        success: false,
+        message: "Invalid token",
+      };
+    }
+
+    const { data: users, error: usersError } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("id", decodedToken.userId);
+    if (usersError || !users || users.length === 0 ) { 
+        return {
+        success: false,
+        message: usersError?.message || "User not found",
+      };
+    }
+      
+    const user = users[0];  
+    delete user.password;
+
+    return {
+      success: true,
+      message: "User fetched successfully",
+      data: user,
+    };
+ 
+  } catch (error) {
+    return {
+      success: false,
+      message: (error as Error).message || "Error fetching logged-in user",
+    }
+  }
 }
