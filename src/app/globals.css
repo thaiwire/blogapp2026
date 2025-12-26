@@ -142,3 +142,6 @@
 .font-bold {
   font-weight: 700;
 }
+.select button {
+  width: 100%;
+}
